@@ -1,4 +1,6 @@
-; TODO: make undo a tree instead of a list
+; TODO
+; make undo a tree instead of a list
+; replace state with a vector and index instead of map
 
 (page "index.html")
 
