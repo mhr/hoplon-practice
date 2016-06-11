@@ -1,0 +1,58 @@
+; TODO: make undo a tree instead of a list
+
+(page "index.html")
+
+(def state (cell {:past [] :present 0 :future []}))
+(def counter (cell= (state :present)))
+
+(def counter-even? (cell= (even? counter)))
+(def color (cell= (if counter-even? "blue" "red")))
+
+(defn present! [f]
+  (dosync
+    ; move present to past
+    (reset! state (assoc @state :past (conj (@state :past) (@state :present))))
+    ; set present with new value based on application of f
+    (reset! state (assoc @state :present (f (@state :present))))
+    ; remove all future
+    (reset! state (assoc @state :future []))))
+(defn undo! []
+  (when (> (count (@state :past)) 0)
+    (dosync
+      ; move present to front of future
+      (reset! state (assoc @state :future (vec (cons (@state :present) (@state :future)))))
+      ; set present to final past item
+      (reset! state (assoc @state :present (peek (@state :past))))
+      ; remove final past item
+      (reset! state (assoc @state :past (pop (@state :past)))))))
+(defn redo! []
+  (when (> (count (@state :future)) 0)
+    (dosync
+      ; move present to end of past
+      (reset! state (assoc @state :past (conj (@state :past) (@state :present))))
+      ; set present to first future item
+      (reset! state (assoc @state :present (first (@state :future))))
+      ; remove first future item
+      (reset! state (assoc @state :future (vec (rest (@state :future))))))))
+(defn debug [] (print @state))
+
+(html
+  (head
+      (link :href "app.css" :rel "stylesheet"))
+  (body
+    (button :click (fn [] (present! inc)) "Inc")
+    (button :click (fn [] (present! dec)) "Dec")
+    (button :click undo! "Undo")
+    (button :click redo! "Redo")
+    (button :click debug "Debug")
+    (p :style (cell= (str "color:" color))
+      (text (if counter-even? "even" "odd")))
+    (table
+      (tr
+        (td "Past")
+        (td "Present")
+        (td "Future"))
+      (tr
+        (td :valign "top" (ul (for-tpl [x (cell= (state :past))] (li x))))
+        (td :valign "top" (h1 (cell= counter)))
+        (td :valign "top" (ul (for-tpl [x (cell= (state :future))] (li x))))))))
